@@ -2,9 +2,11 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+*.jpg
+annos/
 # C extensions
 *.so
+nohup.out
 
 # Distribution / packaging
 .Python
@@ -128,4 +130,4 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-.jpg
+*.jpg

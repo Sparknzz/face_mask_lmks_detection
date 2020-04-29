@@ -61,9 +61,6 @@ class TrainImageReader:
         self.data = data['data']
         self.label = [label[name] for name in self.label_names]
 
-
-
-
 def get_minibatch(imdb):
     # im_size: 12, 24 or 48
     num_images = len(imdb)
@@ -74,18 +71,24 @@ def get_minibatch(imdb):
 
     for i in range(num_images):
         im = cv2.imread(imdb[i]['image'])
-        #im = Image.open(imdb[i]['image'])
  
         if imdb[i]['flipped']:
             im = im[:, ::-1, :]
-            #im = im.transpose(Image.FLIP_LEFT_RIGHT)
 
         cls = imdb[i]['label']
         bbox_target = imdb[i]['bbox_target']
         landmark = imdb[i]['landmark_target']
 
         processed_ims.append(im)
-        cls_label.append(cls)
+        
+        # change the label format here as we do sigmiod for 2 cls. so when the label is 2 then we need to change it to [0, 1] 
+        if int(cls)==0:               
+            cls_label.append([0, 0])
+        elif int(cls)==1:
+            cls_label.append([1, 0])
+        elif int(cls)==2:
+            cls_label.append([0, 1])
+
         bbox_reg_target.append(bbox_target)
         landmark_reg_target.append(landmark)
 

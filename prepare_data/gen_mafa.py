@@ -25,9 +25,13 @@ with open('mafa.txt', 'w+') as f:
         for label in img_labels:
             f_x1, f_y1, f_w, f_h = label[:4]
             p_x1, p_y1, p_x2, p_y2 = label[4:8]
+            occ_type = label[12]
 
             # if f_w < 100 and f_h<100:
             #     continue
+
+            if occ_type!=1:
+                continue
 
             # as we want to combine mask and non-mask faces altogether, so let the other 3 landmarks to (-1)
             p_x3, p_y3, p_x4, p_y4, p_x5, p_y5 = 0, 0, 0, 0, 0, 0
