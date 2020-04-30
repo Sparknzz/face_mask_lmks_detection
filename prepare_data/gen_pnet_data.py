@@ -6,7 +6,7 @@ import numpy.random as npr
 import sys
 import pandas as pd
 sys.path.append(os.path.realpath(__file__).replace('/prepare_data/gen_pnet_data.py',''))
-print(sys.path)
+# print(sys.path)
 from utils import calculate_iou
 
 
@@ -286,20 +286,13 @@ def combine_mafa_wider(mafa_anno_file, wider_anno_file):
     df.to_csv('merged_data.csv', index=False)
 
 if __name__ == '__main__':
-
-    # traindata_store = '../dataset'
-    # annotation_file = 'wider_face_train.txt' # note for pnet only cal bbox,  so only concern about bbox data
-    # prefix_path = '/home/data/detection/WIDER_train/images' # define the image stored root
-    # gen_pnet_data(traindata_store, annotation_file, prefix_path)
-
-
     # mafa_anno_file = 'mafa.txt'
     # wider_anno_file = 'wider_face.csv'
 
     # combine_mafa_wider(mafa_anno_file, wider_anno_file)
 
-    # gen_pnet_data_pandas('/home/data/my_mtcnn_data', anno_file='./merged_data.csv',prefix='/home/data/cleaned_data')
+    # gen_pnet_data_pandas('/home/data/my_mtcnn_data', anno_file='/root/face_mask_lmks_detection/prepare_data/merged_data.csv', prefix='/home/data/cleaned_data')
     # after get all the images, shuffle the img list
 
     assemble_pnet_data(anno_dir='/root/face_mask_lmks_detection/annos', output_file = '/root/face_mask_lmks_detection/annos/pnet_train_imglist.txt')
-
+    

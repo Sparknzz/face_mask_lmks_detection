@@ -71,7 +71,8 @@ def get_minibatch(imdb):
 
     for i in range(num_images):
         im = cv2.imread(imdb[i]['image'])
- 
+        im = (im - 127.5) / 128
+
         if imdb[i]['flipped']:
             im = im[:, ::-1, :]
 

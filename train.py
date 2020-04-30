@@ -10,15 +10,15 @@ import datetime
 import numpy as np
 
 
-def metric_hit(probability, truth, threshold=0.8):
-    batch_size, num_class, H, W = logit.shape
+def metric_hit(probability, truth, threshold=0.6):
+    batch_size, num_class, H, W = probability.shape
 
     with torch.no_grad():
         probability = probability.view(batch_size, num_class, -1)
-        truth = truth.view(batch_size, num_class, -1) # batch, 2, 1
+        truth = truth.view(batch_size, num_class, -1) # batch, 2
 
         p = (probability>threshold).float()
-        t = (truth>0.5).float()
+        t = truth.float()
 
         tp = ((p + t) == 2).float()  # True positives
         tn = ((p + t) == 0).float()  # True negatives
@@ -42,11 +42,10 @@ def metric_hit(probability, truth, threshold=0.8):
     return tn, tp, num_neg, num_pos
 
 
-def train_pnet(annotation_file, model_store_path, end_epoch=16, batch_size=512, frequent=50, base_lr=0.01, use_cuda=True):
+def train_pnet(annotation_file, model_store_path, end_epoch=30, batch_size=512, frequent=100, base_lr=0.001, use_cuda=True):
 
     imagedb = ImageDB(annotation_file)
     gt_imdb = imagedb.load_imdb() # imdb is a list of dict
-    gt_imdb = imagedb.append_flipped_images(gt_imdb)
 
     if not os.path.exists(model_store_path):
         os.makedirs(model_store_path)
@@ -96,8 +95,8 @@ def train_pnet(annotation_file, model_store_path, end_epoch=16, batch_size=512, 
                 b_loss = box_offset_loss.data.cpu().numpy()
                 a_loss = all_loss.data.cpu().numpy()
 
-                print("%s : Epoch: %d, Step: %d, face_hit: %s, mask_hit: %s, neg_hit: %s, cls loss: %s, bbox loss: %s, all_loss: %s, lr:%s " \
-                    %(datetime.datetime.now(),cur_epoch,batch_idx, tp[0], tp[1], tn, c_loss, b_loss, a_loss, base_lr))
+                print("Epoch: %d, Step: %d, face_hit: %.4f, mask_hit: %.4f, neg_hit: %.4f, cls loss: %s, bbox loss: %s, all_loss: %s, lr:%s " \
+                    %(cur_epoch,batch_idx, tp[0], tp[1], tn, c_loss, b_loss, a_loss, base_lr))
                 face_accuracy_list.append(tp[0])
                 mask_accuracy_list.append(tp[1])
                 cls_loss_list.append(c_loss)
