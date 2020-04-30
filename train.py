@@ -10,14 +10,13 @@ import datetime
 import numpy as np
 
 
-def metric_hit(logit, truth, threshold=0.5):
+def metric_hit(probability, truth, threshold=0.8):
     batch_size, num_class, H, W = logit.shape
 
     with torch.no_grad():
-        logit = logit.view(batch_size, num_class, -1)
+        probability = probability.view(batch_size, num_class, -1)
         truth = truth.view(batch_size, num_class, -1) # batch, 2, 1
 
-        probability = torch.sigmoid(logit)
         p = (probability>threshold).float()
         t = (truth>0.5).float()
 
@@ -32,7 +31,7 @@ def metric_hit(logit, truth, threshold=0.5):
         tp = tp.data.cpu().numpy() # face tp detect,  mask tp detect
         tn = tn.data.cpu().numpy().sum() 
         num_pos = num_pos.data.cpu().numpy()
-        num_neg = num_neg.data.cpu().numpy().sum() # why sum()?? no need to sum, 
+        num_neg = num_neg.data.cpu().numpy().sum()
 
         tp = np.nan_to_num(tp/(num_pos+1e-12),0)
         tn = np.nan_to_num(tn/(num_neg+1e-12),0)
@@ -93,33 +92,30 @@ def train_pnet(annotation_file, model_store_path, end_epoch=16, batch_size=512, 
 
             if batch_idx%frequent==0:
                 tn, tp, num_neg, num_pos = metric_hit(cls_pred, gt_label)
-                c_loss = cls_loss.data
-                b_loss = box_offset_loss.data
-                a_loss = all_loss.data
+                c_loss = cls_loss.data.cpu().numpy()
+                b_loss = box_offset_loss.data.cpu().numpy()
+                a_loss = all_loss.data.cpu().numpy()
 
-                print("%s : Epoch: %d, Step: %d, face_hit: %s, mask_hit: %s det loss: %s, bbox loss: %s, all_loss: %s, lr:%s " \
-                    %(datetime.datetime.now(),cur_epoch,batch_idx, tp[0], tp[1], c_loss, b_loss, a_loss, base_lr))
+                print("%s : Epoch: %d, Step: %d, face_hit: %s, mask_hit: %s, neg_hit: %s, cls loss: %s, bbox loss: %s, all_loss: %s, lr:%s " \
+                    %(datetime.datetime.now(),cur_epoch,batch_idx, tp[0], tp[1], tn, c_loss, b_loss, a_loss, base_lr))
                 face_accuracy_list.append(tp[0])
                 mask_accuracy_list.append(tp[1])
-                cls_loss_list.append(cls_loss)
-                bbox_loss_list.append(box_offset_loss)
+                cls_loss_list.append(c_loss)
+                bbox_loss_list.append(b_loss)
 
             optimizer.zero_grad()
             all_loss.backward()
             optimizer.step()
 
-
         face_avg = np.mean(face_accuracy_list)
         mask_avg = np.mean(mask_accuracy_list)
-        cls_loss_avg = torch.mean(torch.cat(cls_loss_list))
-        bbox_loss_avg = torch.mean(torch.cat(bbox_loss_list))
+        cls_loss_avg = np.mean(cls_loss_list)
+        bbox_loss_avg = np.mean(bbox_loss_list)
 
-        show7 = cls_loss_avg.data.tolist()[0]
-        show8 = bbox_loss_avg.data.tolist()[0]
-
-        print("Epoch: %d, face_avg_hit: %s, mask_avg_hit: %s, cls loss: %s, bbox loss: %s" % (cur_epoch, face_avg, mask_avg, show7, show8))
-        torch.save(net.state_dict(), os.path.join(model_store_path,"pnet_epoch_%d.pt" % cur_epoch))
-        torch.save(net, os.path.join(model_store_path, "pnet_epoch_model_%d.pkl" % cur_epoch))
+        print("Epoch: %d, face_avg_hit: %s, mask_avg_hit: %s, cls loss: %s, bbox loss: %s" % (cur_epoch, face_avg, mask_avg, cls_loss_avg, bbox_loss_avg))
+        torch.save(net.state_dict(), os.path.join(model_store_path, "pnet_epoch_%d.pth" % cur_epoch))
+        # torch.save(net, os.path.join(model_store_path, "pnet_epoch_model_%d.pkl" % cur_epoch))
 
 if __name__ == "__main__":
-    train_pnet(annotation_file='/root/face_mask_lmks_detection/annos/pnet_train_imglist.txt', model_store_path='/root/face_mask_lmks_detection/weights')    
+    train_pnet(annotation_file='/root/face_mask_lmks_detection/annos/pnet_train_imglist.txt', model_store_path='/root/face_mask_lmks_detection/weights')
+    # train_pnet(annotation_file='/root/face_mask_lmks_detection/annos/t.txt', model_store_path='/root/face_mask_lmks_detection/weights')

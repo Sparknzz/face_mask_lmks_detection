@@ -6,7 +6,6 @@ __pycache__/
 annos/
 # C extensions
 *.so
-nohup.out
 
 # Distribution / packaging
 .Python
@@ -131,3 +130,5 @@ dmypy.json
 .pyre/
 
 *.jpg
+nohup.out
+weights/

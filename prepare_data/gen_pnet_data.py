@@ -60,9 +60,6 @@ def assemble_pnet_data(anno_dir, output_file):
 
     print("PNet train annotation result file path: %s" % output_file)
 
-
-
-
 def gen_pnet_data_pandas(data_dir, anno_file, prefix):
     # note as for small training purpose, only get the face greater than 40
     # one more important thing is when generating mask faces, it will generates lots of the non masked faces for negative, so when training mtcnn,
