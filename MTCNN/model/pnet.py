@@ -25,7 +25,7 @@ class PNet(nn.Module):
         # detection
         self.conv4_1 = nn.Conv2d(32, 2, kernel_size=1, stride=1)
         # bounding box regresion
-        self.conv4_2 = nn.Conv2d(32, 4*2, kernel_size=1, stride=1)
+        self.conv4_2 = nn.Conv2d(32, 4 * 2, kernel_size=1, stride=1)
         # landmark localization
         self.conv4_3 = nn.Conv2d(32, 10, kernel_size=1, stride=1)
 

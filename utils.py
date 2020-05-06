@@ -1,5 +1,48 @@
 import numpy as np
 
+def read_annotation(base_dir, label_path):
+    """
+    read label file
+    :param dir: path
+    :return:
+    """
+    data = dict()
+    images = []
+    bboxes = []
+    labelfile = open(label_path, 'r')
+    while True:
+        # image path
+        imagepath = labelfile.readline().strip('\n')
+        if not imagepath:
+            break
+        imagepath = base_dir + '/WIDER_train/images/' + imagepath
+        images.append(imagepath)
+        # face numbers
+        nums = labelfile.readline().strip('\n')
+        # im = cv2.imread(imagepath)
+        # h, w, c = im.shape
+        one_image_bboxes = []
+        for i in range(int(nums)):
+            # text = ''
+            # text = text + imagepath
+            bb_info = labelfile.readline().strip('\n').split(' ')
+            # only need x, y, w, h
+            face_box = [float(bb_info[i]) for i in range(4)]
+            # text = text + ' ' + str(face_box[0] / w) + ' ' + str(face_box[1] / h)
+            xmin = face_box[0]
+            ymin = face_box[1]
+            xmax = xmin + face_box[2]
+            ymax = ymin + face_box[3]
+            # text = text + ' ' + str(xmax / w) + ' ' + str(ymax / h)
+            one_image_bboxes.append([xmin, ymin, xmax, ymax])
+            # f.write(text + '\n')
+        bboxes.append(one_image_bboxes)
+
+    data['images'] = images#all images
+    data['bboxes'] = bboxes#all image bboxes
+    # f.close()
+    return data
+
 def calculate_iou(box, boxes):
     """Compute IoU between detect box and gt boxes
 
