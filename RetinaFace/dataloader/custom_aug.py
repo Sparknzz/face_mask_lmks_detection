@@ -56,7 +56,7 @@ def _crop(image, boxes, labels, landm, img_dim):
         centers = (boxes[:, :2] + boxes[:, 2:]) / 2
         mask_a = np.logical_and(roi[:2] < centers, centers < roi[2:]).all(axis=1)
         boxes_t = boxes[mask_a].copy()
-        labels_t = labels[mask_a].copy()
+        labels_t = labels[mask_a].copy() # labels_t still including -1
         landms_t = landm[mask_a].copy()
         landms_t = landms_t.reshape([-1, 5, 2])
 
@@ -65,12 +65,13 @@ def _crop(image, boxes, labels, landm, img_dim):
 
         image_t = image[roi[1]:roi[3], roi[0]:roi[2]] # H W
 
+        # crop bbox
         boxes_t[:, :2] = np.maximum(boxes_t[:, :2], roi[:2])
         boxes_t[:, :2] -= roi[:2]
         boxes_t[:, 2:] = np.minimum(boxes_t[:, 2:], roi[2:])
         boxes_t[:, 2:] -= roi[:2]
 
-        # landm
+        # crop landm
         landms_t[:, :, :2] = landms_t[:, :, :2] - roi[:2]
         landms_t[:, :, :2] = np.maximum(landms_t[:, :, :2], np.array([0, 0]))
         landms_t[:, :, :2] = np.minimum(landms_t[:, :, :2], roi[2:] - roi[:2])
@@ -233,7 +234,7 @@ class preproc(object):
         assert targets.shape[0] > 0, "this image does not have gt"
 
         boxes = targets[:, :4].copy()
-        labels = targets[:, -1].copy() # 1 or -1, 1 is landmarks, -1 means no landmarks
+        labels = targets[:, -1].copy() # 1 2 -1, -1 means ignored face, 1 means positive
         landm = targets[:, 4:-1].copy()
 
         image_t, boxes_t, labels_t, landm_t, pad_image_flag = _crop(image, boxes, labels, landm, self.img_dim)
@@ -249,7 +250,7 @@ class preproc(object):
         landm_t[:, 0::2] /= width
         landm_t[:, 1::2] /= height
 
-        labels_t = np.expand_dims(labels_t, 1)
-        targets_t = np.hstack((boxes_t, landm_t, labels_t))
+        labels_t = np.expand_dims(labels_t, 1) # 1, 1
+        targets_t = np.hstack((boxes_t, landm_t, labels_t)) # 1, 4 + 10 + 1
 
         return image_t, targets_t

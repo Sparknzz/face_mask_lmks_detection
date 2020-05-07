@@ -6,10 +6,11 @@ from collections import OrderedDict
 from models.backbones import *
 
 class ClassHead(nn.Module):
-    def __init__(self, inchannels=512, num_cls=3, num_anchors=3):
+    def __init__(self, inchannels, num_anchors, num_cls=3):
         # num_cls including neg, face, mask
         super(ClassHead, self).__init__()
         self.num_anchors = num_anchors
+        self.num_cls = num_cls
         # bit different here, compare to faster rcnn anchor mechanism, the rcnn doesn't have anchor anymore, 
         # but for single stage model, it deponds on anchors number, while rcnn consider the num class. 4 * 2 sigmoid/ 4 * 3 softmax
         self.conv1x1 = nn.Conv2d(inchannels, self.num_anchors * num_cls, kernel_size=(1, 1), stride=1, padding=0)
@@ -18,7 +19,7 @@ class ClassHead(nn.Module):
         out = self.conv1x1(x)
         out = out.permute(0, 2, 3, 1).contiguous()
 
-        return out.view(out.shape[0], -1, 2)
+        return out.view(out.shape[0], -1, self.num_cls)
 
 
 class BboxHead(nn.Module):

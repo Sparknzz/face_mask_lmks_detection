@@ -67,30 +67,45 @@ class MultiBoxLoss(nn.Module):
 
         for idx in range(num):
             truths = targets[idx][:, :4].data
-            labels = targets[idx][:, -1].data # label only has 1 and -1 for only 1 cls
+            labels = targets[idx][:, -1].data # label only has 1 and -1 and 2, 1 and 2 used for cls
             landms = targets[idx][:, 4:14].data
             defaults = priors.data
             match(self.threshold, truths, defaults, self.variance, labels, landms, loc_t, conf_t, landm_t, idx)
 
-        if GPU:
+        if 1: # use gpu
             loc_t = loc_t.cuda()
             conf_t = conf_t.cuda()
             landm_t = landm_t.cuda()
 
-        zeros = torch.tensor(0).cuda()
-        # landm Loss (Smooth L1)
+        # 1. get index for face class
+        face_tensor = torch.tensor(1).cuda()
         # Shape: [batch,num_priors,10]
-        pos1 = conf_t > zeros
-        num_pos_landm = pos1.long().sum(1, keepdim=True)
-        N1 = max(num_pos_landm.data.sum().float(), 1)
-        pos_idx1 = pos1.unsqueeze(pos1.dim()).expand_as(landm_data)
-        landm_p = landm_data[pos_idx1].view(-1, 10)
-        landm_t = landm_t[pos_idx1].view(-1, 10)
+        face_pos = conf_t == face_tensor
+        face_pos_idx = face_pos.unsqueeze(face_pos.dim()).expand_as(landm_data) # 32, 16800, 10
+        face_landm_p = landm_data[face_pos_idx].view(-1, 10)
+        face_landm_t = landm_t[face_pos_idx].view(-1, 10)
+
+        # 2. get index for mask class, set all these target landmarks to 0.
+        # conf_t is target and anchor, if anchor matched target bbox cls 1, then the conf_t is 1, if anchor matched cls2, conf_t is 2
+        # after match conf_t, we can get all cls2's anchors.
+        mask_tensor = torch.tensor(2).cuda()
+        mask_pos = conf_t == mask_tensor
+        mask_pos_idx = mask_pos.unsqueeze(mask_pos.dim()).expand_as(landm_data)
+        mask_landm_p = landm_data[mask_pos_idx].view(-1, 10)
+        mask_landm_t = landm_t[mask_pos_idx].view(-1, 10)
+
+        mask_landm_p[:, 4:] = 0
+        mask_landm_t[:, 4:] = 0
+
+        landm_p = torch.cat([face_landm_p, mask_landm_p], 0)
+        landm_t = torch.cat([face_landm_t, mask_landm_t], 0)
+
         loss_landm = F.smooth_l1_loss(landm_p, landm_t, reduction='sum')
-
-
+        ##############################################################################################################
+        zeros = torch.tensor(0).cuda()
         pos = conf_t != zeros
-        conf_t[pos] = 1
+        num_pos_landm = pos.long().sum(1, keepdim=True)
+        N1 = max(num_pos_landm.data.sum().float(), 1)
 
         # Localization Loss (Smooth L1)
         # Shape: [batch,num_priors,4]
@@ -99,6 +114,7 @@ class MultiBoxLoss(nn.Module):
         loc_t = loc_t[pos_idx].view(-1, 4)
         loss_l = F.smooth_l1_loss(loc_p, loc_t, reduction='sum')
 
+        ##############################################################################################################
         # Compute max conf across batch for hard negative mining
         batch_conf = conf_data.view(-1, self.num_classes)
         loss_c = log_sum_exp(batch_conf) - batch_conf.gather(1, conf_t.view(-1, 1))
@@ -118,6 +134,7 @@ class MultiBoxLoss(nn.Module):
         conf_p = conf_data[(pos_idx+neg_idx).gt(0)].view(-1,self.num_classes)
         targets_weighted = conf_t[(pos+neg).gt(0)]
         loss_c = F.cross_entropy(conf_p, targets_weighted, reduction='sum')
+        ##############################################################################################################
 
         # Sum of losses: L(x,c,l,g) = (Lconf(x, c) + αLloc(x,l,g)) / N
         N = max(num_pos.data.sum().float(), 1)

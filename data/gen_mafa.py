@@ -20,8 +20,7 @@ with open('mafa.txt', 'w+') as f:
         # per_img[0]
         img_name = per_img[1][0]
 
-        f.write('# ' + str(img_name))
-        f.write('\n')
+        f.write('# ' + str(img_name) + '\n')
         
         img_labels = per_img[2]
 
@@ -35,8 +34,6 @@ with open('mafa.txt', 'w+') as f:
             p_3_visible = 0
             p_4_visible = 0
             p_5_visible = 0
-            # if occ_type != 1:
-                # continue
 
             # as we want to combine mask and non-mask faces altogether, so let the other 3 landmarks to (-1)
             p_x3, p_y3, p_x4, p_y4, p_x5, p_y5 = -1, -1, -1, -1, -1, -1
@@ -57,7 +54,7 @@ with open('mafa.txt', 'w+') as f:
             for landmark in landmark5:
                 infos.append(str(landmark))
 
-            infos.append(str(occ_type))
+            infos.append(str(2))
             
             infos.append('\n')
 
