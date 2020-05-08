@@ -9,4 +9,4 @@ TO DO:
 
 
 #### result
-![demoimg](/RetinaFace/result.jpg)
+<img src="RetinaFace/result.jpg" width="400" height="500">
