@@ -72,7 +72,7 @@ class FaceDataset(data.Dataset):
             annotation[0, 13] = label[17]  # l4_y
             
             if (annotation[0, 4] < 0):
-                annotation[0, 14] = 0
+                annotation[0, 14] = -1
             elif int(label[-1]) == 2:
                 annotation[0, 14] = 2 # for mask data
             else:

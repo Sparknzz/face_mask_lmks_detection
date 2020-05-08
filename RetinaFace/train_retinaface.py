@@ -21,7 +21,7 @@ import numpy as np
 parser = argparse.ArgumentParser(description='Retinaface Training')
 parser.add_argument('--training_dataset', default='./data/widerface/train/label.txt', help='Training dataset directory')
 parser.add_argument('--network', default='mobile0.25', help='Backbone network mobile0.25 or resnet50')
-parser.add_argument('--num_workers', default=1, type=int, help='Number of workers used in dataloading')
+parser.add_argument('--num_workers', default=4, type=int, help='Number of workers used in dataloading')
 parser.add_argument('--lr', '--learning-rate', default=1e-3, type=float, help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
 parser.add_argument('--resume_net', default=None, help='resume net for retraining')
@@ -73,6 +73,21 @@ save_folder = args.save_folder
 net = RetinaFace(cfg=cfg)
 print("Printing net...")
 print(net)
+
+if args.resume_net is not None:
+    print('Loading resume network...')
+    state_dict = torch.load(args.resume_net)
+    # create new OrderedDict that does not contain `module.`
+    from collections import OrderedDict
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        head = k[:7]
+        if head == 'module.':
+            name = k[7:] # remove `module.`
+        else:
+            name = k
+        new_state_dict[name] = v
+    net.load_state_dict(new_state_dict)
 
 if num_gpu > 1 and gpu_train:
     net = torch.nn.DataParallel(net).cuda()

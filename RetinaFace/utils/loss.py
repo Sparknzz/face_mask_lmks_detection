@@ -77,6 +77,12 @@ class MultiBoxLoss(nn.Module):
             conf_t = conf_t.cuda()
             landm_t = landm_t.cuda()
 
+        # cos label file including -1 landmarks so ignore this data for landmark regression
+        zeros = torch.tensor(0).cuda()
+        pos = conf_t > zeros
+        num_pos_landm = pos.long().sum(1, keepdim=True)
+        N1 = max(num_pos_landm.data.sum().float(), 1)
+
         # 1. get index for face class
         face_tensor = torch.tensor(1).cuda()
         # Shape: [batch,num_priors,10]
@@ -104,8 +110,6 @@ class MultiBoxLoss(nn.Module):
         ##############################################################################################################
         zeros = torch.tensor(0).cuda()
         pos = conf_t != zeros
-        num_pos_landm = pos.long().sum(1, keepdim=True)
-        N1 = max(num_pos_landm.data.sum().float(), 1)
 
         # Localization Loss (Smooth L1)
         # Shape: [batch,num_priors,4]
@@ -117,6 +121,9 @@ class MultiBoxLoss(nn.Module):
         ##############################################################################################################
         # Compute max conf across batch for hard negative mining
         batch_conf = conf_data.view(-1, self.num_classes)
+        # Note here, as label file including -1 label, so we have to make them to 0~2
+        no_landmark_pos = conf_t < zeros
+        conf_t[no_landmark_pos] = 1
         loss_c = log_sum_exp(batch_conf) - batch_conf.gather(1, conf_t.view(-1, 1))
 
         # Hard Negative Mining
