@@ -2,10 +2,10 @@
 __pycache__/
 *.py[cod]
 *$py.class
-*.jpg
 annos/
 # C extensions
 *.so
+test.jpg
 
 # Distribution / packaging
 .Python
@@ -129,6 +129,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-*.jpg
 nohup.out
 weights/
