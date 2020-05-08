@@ -9,4 +9,4 @@ TO DO:
 
 
 #### result
-![demoimg](https://github.com/nypzxy/face_mask_lmks_detection/tree/master/RetinaFace/result.jpg)
+![demoimg](/RetinaFace/result.jpg)
