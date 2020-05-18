@@ -20,7 +20,7 @@ import numpy as np
 
 parser = argparse.ArgumentParser(description='Retinaface Training')
 parser.add_argument('--training_dataset', default='./data/widerface/train/label.txt', help='Training dataset directory')
-parser.add_argument('--network', default='mobile0.25', help='Backbone network mobile0.25 or resnet50')
+parser.add_argument('--network', default='resnet18', help='Backbone network mobile0.25 or resnet50')
 parser.add_argument('--num_workers', default=4, type=int, help='Number of workers used in dataloading')
 parser.add_argument('--lr', '--learning-rate', default=1e-3, type=float, help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
@@ -35,8 +35,29 @@ args = parser.parse_args()
 if not os.path.exists(args.save_folder):
     os.mkdir(args.save_folder)
 
+# cfg = {
+#     'name': 'resnet18',
+#     'min_sizes': [[16, 32], [64, 128], [256, 512]],
+#     'steps': [8, 16, 32],
+#     'variance': [0.1, 0.2],
+#     'clip': False,
+#     'loc_weight': 2.0,
+#     'gpu_train': True,
+#     'batch_size': 32,
+#     'ngpu': 1,
+#     'epoch': 100,
+#     'decay1': 60,
+#     'decay2': 80,
+#     'image_size': 640,
+#     'pretrain': True,
+#     'return_layers': {'layer2': 1, 'layer3': 2, 'layer4': 3},
+#     'in_channel': 64,
+#     'out_channel': 256
+# }
+
+
 cfg = {
-    'name': 'mobilenet0.25',
+    'name': 'mobilenet',
     'min_sizes': [[16, 32], [64, 128], [256, 512]],
     'steps': [8, 16, 32],
     'variance': [0.1, 0.2],
@@ -45,9 +66,9 @@ cfg = {
     'gpu_train': True,
     'batch_size': 32,
     'ngpu': 1,
-    'epoch': 250,
-    'decay1': 190,
-    'decay2': 220,
+    'epoch': 200,
+    'decay1': 120,
+    'decay2': 160,
     'image_size': 640,
     'pretrain': True,
     'return_layers': {'stage1': 1, 'stage2': 2, 'stage3': 3},
@@ -56,6 +77,8 @@ cfg = {
 }
 
 rgb_mean = (104, 117, 123) # bgr order
+# rgb_mean = np.array([103.939, 116.779, 123.68]) # bgr order
+
 num_classes = 3 # bg, face,  mask
 img_dim = cfg['image_size']
 num_gpu = cfg['ngpu']

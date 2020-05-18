@@ -148,14 +148,14 @@ def get_minibatch(imdb):
 
         processed_ims.append(im)
         
-        # change the label format here as we do sigmiod for 2 cls. so when the label is 2 then we need to change it to [0, 1] 
-        if int(cls)==0:               
-            cls_label.append([0, 0])
-        elif int(cls)==1:
-            cls_label.append([1, 0])
-        elif int(cls)==2:
-            cls_label.append([0, 1])
-
+        # # change the label format here as we do sigmiod for 2 cls. so when the label is 2 then we need to change it to [0, 1] 
+        # if int(cls)==0:               
+        #     cls_label.append([0, 0])
+        # elif int(cls)==1:
+        #     cls_label.append([1, 0])
+        # elif int(cls)==2:
+        #     cls_label.append([0, 1])
+        cls_label.append(cls)
         bbox_reg_target.append(bbox_target)
         landmark_reg_target.append(landmark)
 

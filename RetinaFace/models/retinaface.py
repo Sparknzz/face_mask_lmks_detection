@@ -59,12 +59,12 @@ class RetinaFace(nn.Module):
         super(RetinaFace, self).__init__()
         self.phase = phase
         backbone = None
-        if cfg['name'] == 'mobilenet0.25':
+        if cfg['name'] == 'mobilenet':
             backbone = MobileNetV1()
         elif cfg['name'] == 'Resnet50':
             import torchvision.models as models
             backbone = models.resnet50(pretrained=cfg['pretrain'])
-        elif cfg['name'] == 'Resnet18':
+        elif cfg['name'] == 'resnet18':
             import torchvision.models as models
             backbone = models.resnet18(pretrained=cfg['pretrain'])
 
@@ -80,6 +80,7 @@ class RetinaFace(nn.Module):
 
         out_channels = cfg['out_channel']
         
+        # in_channel 256 512 1024
         self.fpn = FPN(in_channels_list, out_channels)
 
         self.ssh1 = SSH(out_channels, out_channels)

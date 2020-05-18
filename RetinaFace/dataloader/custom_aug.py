@@ -55,6 +55,9 @@ def _crop(image, boxes, labels, landm, img_dim):
 
         centers = (boxes[:, :2] + boxes[:, 2:]) / 2
         mask_a = np.logical_and(roi[:2] < centers, centers < roi[2:]).all(axis=1)
+        # todo for me its better to calculate the croped face and original roi. cos lots of those croped face would be half face. 
+        # if those are half face, then label it -1.
+
         boxes_t = boxes[mask_a].copy()
         labels_t = labels[mask_a].copy() # labels_t still including -1
         landms_t = landm[mask_a].copy()
@@ -216,11 +219,12 @@ def _pad_to_square(image, rgb_mean, pad_image_flag):
 
 
 def _resize_subtract_mean(image, insize, rgb_mean):
-    interp_methods = [cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_NEAREST, cv2.INTER_LANCZOS4]
-    interp_method = interp_methods[random.randrange(5)]
-    image = cv2.resize(image, (insize, insize), interpolation=interp_method)
+    # interp_methods = [cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_NEAREST, cv2.INTER_LANCZOS4]
+    # interp_method = interp_methods[random.randrange(5)]
+    image = cv2.resize(image, (insize, insize), interpolation=cv2.INTER_CUBIC)
     image = image.astype(np.float32)
     image -= rgb_mean
+
     return image.transpose(2, 0, 1)
 
 
@@ -239,11 +243,12 @@ class preproc(object):
 
         image_t, boxes_t, labels_t, landm_t, pad_image_flag = _crop(image, boxes, labels, landm, self.img_dim)
 
-        image_t = _distort(image_t)
+        # image_t = _distort(image_t) # off this maybe affect result significantly
         image_t = _pad_to_square(image_t,self.rgb_means, pad_image_flag)
         image_t, boxes_t, landm_t = _mirror(image_t, boxes_t, landm_t)
         height, width, _ = image_t.shape
         image_t = _resize_subtract_mean(image_t, self.img_dim, self.rgb_means)
+
         boxes_t[:, 0::2] /= width
         boxes_t[:, 1::2] /= height
 

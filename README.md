@@ -9,4 +9,5 @@ TO DO:
 
 
 #### result
+##### The green rectangle represents the mask face detected, red one means the full face. 
 <img src="RetinaFace/result.jpg" width="400" height="500">

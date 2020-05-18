@@ -23,23 +23,19 @@ class PNet(nn.Module):
             nn.PReLU()  # PReLU3
         )
         # detection
-        self.conv4_1 = nn.Conv2d(32, 2, kernel_size=1, stride=1)
+        self.conv4_1 = nn.Conv2d(32, 1, kernel_size=1, stride=1) # only for forground and background
         # bounding box regresion
-        self.conv4_2 = nn.Conv2d(32, 4 * 2, kernel_size=1, stride=1)
+        self.conv4_2 = nn.Conv2d(32, 4, kernel_size=1, stride=1)
+
         # landmark localization
-        self.conv4_3 = nn.Conv2d(32, 10, kernel_size=1, stride=1)
+        # self.conv4_3 = nn.Conv2d(32, 10, kernel_size=1, stride=1)
 
         # weight initiation with xavier
         self.apply(weights_init)
 
     def forward(self, x):
         x = self.pre_layer(x)
-        label = torch.sigmoid(self.conv4_1(x)) # batch, 2, 1, 1
-
+        logits = self.conv4_1(x) # batch, 2, 1, 1
         offset = self.conv4_2(x)
-        # landmark = self.conv4_3(x)
 
-        return label, offset
-
-
-        
+        return logits, offset

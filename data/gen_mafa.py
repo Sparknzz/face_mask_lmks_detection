@@ -54,7 +54,7 @@ with open('mafa.txt', 'w+') as f:
             for landmark in landmark5:
                 infos.append(str(landmark))
 
-            infos.append(str(2))
+            infos.append(str(occ_type))
             
             infos.append('\n')
 

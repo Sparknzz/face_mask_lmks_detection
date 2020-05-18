@@ -10,22 +10,22 @@ from models.retinaface import RetinaFace
 from utils.box_utils import *
 import time
 import sys
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 sys.path.append(os.path.realpath(__file__).replace(__file__, ''))
 
 parser = argparse.ArgumentParser(description='Retinaface')
 
-parser.add_argument('-m', '--trained_model', default = 'weights/mobilenet0.25_epoch_60.pth',
+parser.add_argument('-m', '--trained_model', default = 'weights/mobilenet_Final.pth',
                     type=str, help='Trained state_dict file path to open')
 
 parser.add_argument('--network', default='mobile0.25', help='Backbone network mobile0.25 or resnet50')
 parser.add_argument('--cpu', action="store_true", default=False, help='Use cpu inference')
-parser.add_argument('--confidence_threshold', default=0.02, type=float, help='confidence_threshold')
+parser.add_argument('--confidence_threshold', default=0.7, type=float, help='confidence_threshold')
 parser.add_argument('--top_k', default=5000, type=int, help='top_k')
 parser.add_argument('--nms_threshold', default=0.4, type=float, help='nms_threshold')
 parser.add_argument('--keep_top_k', default=750, type=int, help='keep_top_k')
 parser.add_argument('-s', '--save_image', action="store_true", default=True, help='show detection results')
-parser.add_argument('--vis_thres', default=0.75, type=float, help='visualization_threshold')
 args = parser.parse_args()
 
 
@@ -71,7 +71,8 @@ if __name__ == '__main__':
 
 
     cfg = {
-    'name': 'mobilenet0.25',
+    'name': 'mobilenet',
+    # 'name': 'resnet18',
     'min_sizes': [[16, 32], [64, 128], [256, 512]],
     'steps': [8, 16, 32],
     'variance': [0.1, 0.2],
@@ -102,9 +103,12 @@ if __name__ == '__main__':
 
     resize = 1
 
-    ims = os.listdir('/home/test_images')
-    im_path = [os.path.join('/home/test_images', im) for im in ims]
+    ims = os.listdir('/home/videos/051209')
+    # im_path = [os.path.join('/home/videos/051209', im) for im in ims]
 
+    im_path = ['/root/face_mask_lmks_detection/106.jpg', '/root/face_mask_lmks_detection/105.jpg', '/root/face_mask_lmks_detection/107.jpg',
+    '/root/face_mask_lmks_detection/109.jpg', '/root/face_mask_lmks_detection/test.jpg']
+    
     # testing begin
     for image_path in im_path:
         #image_path = "/root/face_mask_lmks_detection/test.jpg"
@@ -179,6 +183,11 @@ if __name__ == '__main__':
         labels = np.argmax(scores, axis=-1)
         scores = np.max(scores, axis=-1) # scores : number anchors,
 
+        # print(scores)
+
+        if len(scores)==0:
+            continue
+
         # do multi cls NMS
         dets = np.hstack((boxes, scores[:, np.newaxis], labels[:, np.newaxis])).astype(np.float32, copy=False) 
 
@@ -212,8 +221,6 @@ if __name__ == '__main__':
         # show image
         if args.save_image:
             for b in dets:
-                if b[4] < args.vis_thres:
-                    continue
                 text = "{:.4f}".format(b[4])
                 b = list(map(int, b))
                 if int(b[5]) == 1:
@@ -228,12 +235,13 @@ if __name__ == '__main__':
                             cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255))
 
                 # landms
-                cv2.circle(img_raw, (b[6], b[7]), 1, (0, 0, 255), 4)
-                cv2.circle(img_raw, (b[8], b[9]), 1, (0, 255, 255), 4)
-                cv2.circle(img_raw, (b[10], b[11]), 1, (255, 0, 255), 4)
-                cv2.circle(img_raw, (b[12], b[13]), 1, (0, 255, 0), 4)
-                cv2.circle(img_raw, (b[14], b[15]), 1, (255, 0, 0), 4)
+                cv2.circle(img_raw, (b[6], b[7]), 1, (0, 0, 255), 2)
+                cv2.circle(img_raw, (b[8], b[9]), 1, (0, 255, 255), 2)
+                cv2.circle(img_raw, (b[10], b[11]), 1, (255, 0, 255), 2)
+                cv2.circle(img_raw, (b[12], b[13]), 1, (0, 255, 0), 2)
+                cv2.circle(img_raw, (b[14], b[15]), 1, (255, 0, 0), 2)
             # save image
 
             # name = "test.jpg"
-            cv2.imwrite(image_path.replace('.jpg','_1.jpg'), img_raw)
+            cv2.imwrite('/home/dd/'+image_path.split('/')[-1].replace('.jpg', '_2.jpg'), img_raw)
+            # cv2.imwrite(image_path.split('/')[-1], img_raw)

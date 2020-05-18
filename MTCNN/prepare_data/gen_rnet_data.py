@@ -208,8 +208,10 @@ def t_net(model_path, batch_size=1, test_mode="PNet",
 
     #########################################################################
     if 1:
-        im = cv2.imread('/root/face_mask_lmks_detection/test.jpg')
+        raw_im = cv2.imread('/root/face_mask_lmks_detection/test.jpg')
     
+        im = (raw_im - 127.5) / 128
+
         t = time.time()
 
         boxes_align = np.array([])
@@ -230,9 +232,9 @@ def t_net(model_path, batch_size=1, test_mode="PNet",
             else:
                 color = (0, 0, 255)
 
-            cv2.rectangle(im, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), color, 2)
+            cv2.rectangle(raw_im, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), color, 2)
 
-        cv2.imwrite('result.jpg', im)
+        cv2.imwrite('result.jpg', raw_im)
 
     ####################################################################################
     # data = read_annotation(wider_base_dir, label_path = './wider_face_train_bbx_gt.txt')
@@ -274,4 +276,4 @@ if __name__ == '__main__':
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
 
-    t_net('/root/face_mask_lmks_detection/weights/pnet_epoch_16.pth')
+    t_net('/root/face_mask_lmks_detection/MTCNN/weights/pnet_epoch_30.pth')

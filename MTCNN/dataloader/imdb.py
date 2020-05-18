@@ -79,14 +79,11 @@ class ImageDB(object):
         return image_file
 
 
-    def load_annotations(self,annotion_type=1):
+    def load_annotations(self):
         """Load annotations
 
         Parameters:
         ----------
-        annotion_type: int
-                      0:dsadsa
-                      1:dsadsa
         Returns:
         -------
         imdb: dict
@@ -97,12 +94,13 @@ class ImageDB(object):
         with open(self.image_annotation_file, 'r') as f:
             annotations = f.readlines()
 
-
         imdb = []
+
         for i in range(self.num_images):
             annotation = annotations[i].strip().split(' ')
-            index = annotation[0]
-            im_path = self.real_image_path(index)
+            im_path = annotation[0]
+            # im_path = self.real_image_path(index)
+
             imdb_ = dict()
             imdb_['image'] = im_path
 
@@ -125,5 +123,36 @@ class ImageDB(object):
                     imdb_['bbox_target'] = np.array(bbox_target).astype(float)
                     landmark = annotation[6:]
                     imdb_['landmark_target'] = np.array(landmark).astype(float)
+
             imdb.append(imdb_)
+        return imdb
+
+    def append_flipped_images(self, imdb):
+        """append flipped images to imdb
+
+        Parameters:
+        ----------
+        imdb: imdb
+            image database
+        Returns:
+        -------
+        imdb: dict
+            image database with flipped image annotations added
+        """
+        print('append flipped images to imdb', len(imdb))
+        for i in range(len(imdb)):
+            imdb_ = imdb[i]
+            m_bbox = imdb_['bbox_target'].copy()
+
+            m_bbox[0], m_bbox[2] = -m_bbox[2], -m_bbox[0]
+
+            entry = {'image': imdb_['image'],
+                     'label': imdb_['label'],
+                     'bbox_target': m_bbox,
+                     'landmark_target': np.zeros((10,)),
+                     'flipped': True}
+
+            imdb.append(entry)
+
+        self.image_set_index *= 2
         return imdb
