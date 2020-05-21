@@ -30,7 +30,54 @@ def resize_image(img, scale):
     img_resized = cv2.resize(img, new_dim, interpolation=cv2.INTER_LINEAR)      # resized image
     return img_resized
 
-def detect_pnet(pnet, im, thresh, min_face_size=100, scale_factor=0.709):
+
+def generate_bounding_box(probability, reg, scale, threshold):
+    """
+        generate bbox from feature map
+    Parameters:
+    ----------
+        map: numpy array ,        n, m, 2
+            detect score for each position
+        reg: numpy array ,        n, m, 2 * 4
+            bbox
+        scale: float number
+            scale of this detection
+        threshold: float number
+            detect threshold
+    Returns:
+    -------
+        bbox array
+    """
+
+    h, w, c = probability.shape
+    
+    stride = 2 # cos the img is pooling onece in pnet
+    cellsize = 12
+
+    # based on probability filter the cls bbox6
+    idx = np.where(probability > threshold) # h, w, 1
+
+    dx1, dy1, dx2, dy2 = [reg[idx[0], idx[1], i] for i in range(4)]
+
+    reg = np.array([dx1, dy1, dx2, dy2])
+
+    score = probability[idx[0], idx[1], 0]
+    
+    # find nothing
+    if idx[0].size == 0:
+        return np.array([])
+
+    boundingbox = np.vstack([np.round((stride * idx[1]) / scale), \
+                                np.round((stride * idx[0]) / scale), \
+                                np.round((stride * idx[1] + cellsize) / scale), \
+                                np.round((stride * idx[0] + cellsize) / scale), \
+                                reg, \
+                                score
+                                ])
+
+    return boundingbox.T
+
+def detect_pnet(pnet, im, thresh, min_face_size=200, scale_factor=0.709):
     h, w, c = im.shape
     net_size = 12
 
@@ -49,7 +96,7 @@ def detect_pnet(pnet, im, thresh, min_face_size=100, scale_factor=0.709):
         feed_imgs = feed_imgs.float().cuda()
 
         cls_map, reg = pnet(feed_imgs) # (batch, 2, h, w), (batch, 4*2, h, w)
-        
+        cls_map = torch.sigmoid(cls_map)
         # remove the batch dimension, for batch is always 1 for inference.
         cls_probability = cls_map.cpu().numpy()[0]
         reg_np = reg.cpu().numpy()[0]
@@ -81,7 +128,7 @@ def detect_pnet(pnet, im, thresh, min_face_size=100, scale_factor=0.709):
     boxes_align = np.vstack([align_topx,
                             align_topy,
                             align_bottomx,
-                            align_bottomy, all_boxes[:, 8], all_boxes[:, 9]])
+                            align_bottomy, all_boxes[:, 8]])
 
     boxes_align = boxes_align.T
 
@@ -208,7 +255,7 @@ def t_net(model_path, batch_size=1, test_mode="PNet",
 
     #########################################################################
     if 1:
-        raw_im = cv2.imread('/root/face_mask_lmks_detection/test.jpg')
+        raw_im = cv2.imread('/root/face_mask_lmks_detection/105.jpg')
     
         im = (raw_im - 127.5) / 128
 
@@ -227,11 +274,12 @@ def t_net(model_path, batch_size=1, test_mode="PNet",
 
 
         for box in boxes_align:
-            if box[5]==1:
-                color = (0, 255, 0)
-            else:
-                color = (0, 0, 255)
+            # if box[5]==1:
+            #     color = (0, 255, 0)
+            # else:
+            color = (0, 0, 255)
 
+            cv2.putText(raw_im, str(np.round(box[4],2)),(int(box[0]),int(box[1])),cv2.FONT_HERSHEY_TRIPLEX,1,color=(255,0,255))
             cv2.rectangle(raw_im, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), color, 2)
 
         cv2.imwrite('result.jpg', raw_im)
@@ -276,4 +324,4 @@ if __name__ == '__main__':
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
 
-    t_net('/root/face_mask_lmks_detection/MTCNN/weights/pnet_epoch_30.pth')
+    t_net('/root/face_mask_lmks_detection/MTCNN/weights/pnet_epoch_16.pth')

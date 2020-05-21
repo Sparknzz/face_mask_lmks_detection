@@ -137,7 +137,7 @@ def nms(dets, thresh, mode="Union"):
     y2 = dets[:, 3]
 
     scores = dets[:, 4]
-    labels = dets[:, 5]
+    # labels = dets[:, 5]
 
     areas = (x2 - x1 + 1) * (y2 - y1 + 1)
     order = scores.argsort()[::-1]
@@ -157,21 +157,21 @@ def nms(dets, thresh, mode="Union"):
 
         inter = w * h
 
-        label_match = labels[i] == labels[order[1:]] # 9,
+        # label_match = labels[i] == labels[order[1:]] # 9,
 
         ovr = inter / (areas[i] + areas[order[1:]] - inter)
         
         large_overlap = ovr > thresh
         
         # Indices of boxes with lower confidence scores, large IOUs and matching labels
-        invalid = large_overlap & label_match # 9, 
+        # invalid = large_overlap & label_match # 9, 
 
-        inds = np.where(~invalid)[0]
+        # inds = np.where(~invalid)[0]
 
-        order = order[inds + 1]
-
-        # inds = np.where(ovr <= thresh)[0]
-        
         # order = order[inds + 1]
+
+        inds = np.where(ovr <= thresh)[0]
+        
+        order = order[inds + 1]
 
     return keep

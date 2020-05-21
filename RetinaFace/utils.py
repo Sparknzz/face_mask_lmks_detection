@@ -74,53 +74,6 @@ def calculate_iou(box, boxes):
     #ovr = inter / (box_area + area - inter)
     return ovr
 
-def generate_bounding_box(probability, reg, scale, threshold):
-    """
-        generate bbox from feature map
-    Parameters:
-    ----------
-        map: numpy array ,        n, m, 2
-            detect score for each position
-        reg: numpy array ,        n, m, 2 * 4
-            bbox
-        scale: float number
-            scale of this detection
-        threshold: float number
-            detect threshold
-    Returns:
-    -------
-        bbox array
-    """
-
-    h, w, c = probability.shape
-    
-    stride = 2 # cos the img is pooling onece in pnet
-    cellsize = 12
-
-    # based on probability filter the cls bbox6
-    idx = np.where(probability > threshold) # h, w, 2
-    reg = reg.reshape(h, w, c, 4)
-
-    dx1, dy1, dx2, dy2 = [reg[idx[0], idx[1], idx[2], i] for i in range(4)]
-    reg = np.array([dx1, dy1, dx2, dy2])
-    score = probability[idx[0], idx[1], idx[2]]
-    label = np.array(idx[2])
-    
-    # find nothing
-    if idx[0].size == 0:
-        return np.array([])
-
-    boundingbox = np.vstack([np.round((stride * idx[1]) / scale), \
-                                np.round((stride * idx[0]) / scale), \
-                                np.round((stride * idx[1] + cellsize) / scale), \
-                                np.round((stride * idx[0] + cellsize) / scale), \
-                                reg, \
-                                score, \
-                                label
-                                ])
-
-    return boundingbox.T
-
 def nms(dets, thresh, mode="Union"):
     """
     greedily select boxes with high confidence

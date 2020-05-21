@@ -127,6 +127,16 @@ class TestLoader:
         self.data = im
 
 
+
+def image_color_distort(inputs):
+    inputs = cv2.random_contrast(inputs, lower=0.5, upper=1.5)
+    inputs = tf.image.random_brightness(inputs, max_delta=0.2)
+    inputs = tf.image.random_hue(inputs,max_delta= 0.2)
+    inputs = tf.image.random_saturation(inputs,lower = 0.5, upper= 1.5)
+
+    return inputs
+
+
 def get_minibatch(imdb):
     # im_size: 12, 24 or 48
     num_images = len(imdb)
