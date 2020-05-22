@@ -14,7 +14,7 @@ from models.retinaface import RetinaFace
 from dataloader.face_dataset import FaceDataset
 from dataloader.custom_aug import *
 from prior_box import *
-from utils.loss import *
+from models.loss import *
 import numpy as np
 
 
@@ -34,27 +34,6 @@ args = parser.parse_args()
 
 if not os.path.exists(args.save_folder):
     os.mkdir(args.save_folder)
-
-# cfg = {
-#     'name': 'resnet18',
-#     'min_sizes': [[16, 32], [64, 128], [256, 512]],
-#     'steps': [8, 16, 32],
-#     'variance': [0.1, 0.2],
-#     'clip': False,
-#     'loc_weight': 2.0,
-#     'gpu_train': True,
-#     'batch_size': 32,
-#     'ngpu': 1,
-#     'epoch': 100,
-#     'decay1': 60,
-#     'decay2': 80,
-#     'image_size': 640,
-#     'pretrain': True,
-#     'return_layers': {'layer2': 1, 'layer3': 2, 'layer4': 3},
-#     'in_channel': 64,
-#     'out_channel': 256
-# }
-
 
 cfg = {
     'name': 'mobilenet',
@@ -94,8 +73,7 @@ gamma = args.gamma
 save_folder = args.save_folder
 
 net = RetinaFace(cfg=cfg)
-print("Printing net...")
-print(net)
+print("Initial net...")
 
 if args.resume_net is not None:
     print('Loading resume network...')
@@ -145,12 +123,9 @@ def detection_collate(batch):
 
 
 def train():
-    # create dataset and dataloader
-    training_dataset = ['/root/face_mask_lmks_detection/data/mafa.txt', '/root/face_mask_lmks_detection/data/label.txt']
-    img_dirs = ['/home/data/MAFA/images/', '/home/data/detection/train/images/']
 
-    # 2 dataset we put them together with data augment
-    dataset = FaceDataset('/root/face_mask_lmks_detection/data/mafa_wider.txt', img_dirs, preproc(img_dim, rgb_mean))
+    # 1 dataset we put them together with data augment
+    dataset = FaceDataset('/root/face_mask_lmks_detection/FaceMaskDetection/annos/train_labels.csv', preproc(img_dim, rgb_mean))
 
     train_loader = data.DataLoader(dataset, batch_size, shuffle=True, num_workers=num_workers, collate_fn=detection_collate)
 
@@ -163,8 +138,7 @@ def train():
     # preparing optimizer loss
     optimizer = optim.SGD(net.parameters(), lr=initial_lr, momentum=momentum, weight_decay=weight_decay)
 
-    criterion = MultiBoxLoss(num_classes, 0.35, True, 0, True, 7, 0.35, False)
-
+    criterion = MultiBoxLoss(num_classes, overlap_thresh = 0.5, prior_for_matching = True, bkg_label = 0, neg_mining = True, neg_pos = 3,neg_overlap = 0.5)
     # training 
     net.train()
     epoch = 0 + args.resume_epoch
@@ -204,19 +178,18 @@ def train():
 
         # backprop
         optimizer.zero_grad()
-        loss_l, loss_c, loss_landm = criterion(out, priors, targets)
-        loss = cfg['loc_weight'] * loss_l + loss_c + loss_landm
+        loss_l, loss_c = criterion(out, priors, targets)
+        loss = cfg['loc_weight'] * loss_l + loss_c
         loss.backward()
         optimizer.step()
         load_t1 = time.time()
         batch_time = load_t1 - load_t0
         eta = int(batch_time * (max_iter - iteration))
-        print('Epoch:{}/{} || Epochiter: {}/{} || Iter: {}/{} || Loc: {:.4f} Cla: {:.4f} Landm: {:.4f} || LR: {:.8f} || Batchtime: {:.4f} s || ETA: {}'
+        print('Epoch:{}/{} || Epochiter: {}/{} || Iter: {}/{} || Loc: {:.4f} Cla: {:.4f}|| LR: {:.8f} || Batchtime: {:.4f} s || ETA: {}'
               .format(epoch, max_epoch, (iteration % epoch_size) + 1,
-              epoch_size, iteration + 1, max_iter, loss_l.item(), loss_c.item(), loss_landm.item(), lr, batch_time, str(datetime.timedelta(seconds=eta))))
+              epoch_size, iteration + 1, max_iter, loss_l.item(), loss_c.item(), lr, batch_time, str(datetime.timedelta(seconds=eta))))
 
     torch.save(net.state_dict(), save_folder + cfg['name'] + '_Final.pth')
-    # torch.save(net.state_dict(), save_folder + 'Final_Retinaface.pth')
 
 
 def adjust_learning_rate(optimizer, gamma, epoch, step_index, iteration, epoch_size):

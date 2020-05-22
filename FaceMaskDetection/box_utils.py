@@ -93,7 +93,7 @@ def matrix_iof(a, b):
     return area_i / np.maximum(area_a[:, np.newaxis], 1)
 
 
-def match(threshold, truths, priors, variances, labels, landms, loc_t, conf_t, landm_t, idx):
+def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     """Match each prior box with the ground truth box of the highest jaccard
     overlap, encode the bounding boxes, then return the matched indices
     corresponding to both confidence and location preds.
@@ -116,12 +116,14 @@ def match(threshold, truths, priors, variances, labels, landms, loc_t, conf_t, l
     overlaps = jaccard(
         truths,
         point_form(priors)
-    )
+    ) # eg gt 2 * 60000
+
     # (Bipartite Matching)
     # [1,num_objects] best prior for each ground truth
-    best_prior_overlap, best_prior_idx = overlaps.max(1, keepdim=True)
+    best_prior_overlap, best_prior_idx = overlaps.max(1, keepdim=True) # best_prior_overlap means gt match only one anchor, and the best anchors index
+    # if 2 anchors, then they are 2,1 shape
 
-    # ignore hard gt
+    # ignore hard gt, if the gt hard to match then ignore them which means the gt is too small to match
     valid_gt_idx = best_prior_overlap[:, 0] >= 0.2
 
     best_prior_idx_filter = best_prior_idx[valid_gt_idx, :]
@@ -131,13 +133,14 @@ def match(threshold, truths, priors, variances, labels, landms, loc_t, conf_t, l
         conf_t[idx] = 0
         return
 
-    # [1, num_priors] best ground truth for each prior, each gt match an anchor, we called best_prior_idx, each anchor match a gt, we call best_truth_idx
+    # best truth overlap means anchor matched which gt
     best_truth_overlap, best_truth_idx = overlaps.max(0, keepdim=True)
-    best_truth_idx.squeeze_(0)
+    best_truth_idx.squeeze_(0) # eg all anchors 60000, 
     best_truth_overlap.squeeze_(0)
     best_prior_idx.squeeze_(1)
     best_prior_idx_filter.squeeze_(1)
     best_prior_overlap.squeeze_(1)
+
     best_truth_overlap.index_fill_(0, best_prior_idx_filter, 2)  # ensure best prior
 
     # TODO refactor: index  best_prior_idx with long tensor
@@ -147,16 +150,14 @@ def match(threshold, truths, priors, variances, labels, landms, loc_t, conf_t, l
         best_truth_idx[best_prior_idx[j]] = j
     
     matches = truths[best_truth_idx]            # Shape: [num_priors,4] 此处为每一个anchor对应的bbox取出来
-    conf = labels[best_truth_idx]               # Shape: [num_priors]      此处为每一个anchor对应的label取出来
+    conf = labels[best_truth_idx]               # Shape: [num_priors]   此处为每一个anchor对应的label取出来 
+    # note conf is 1, 2
+    
     conf[best_truth_overlap < threshold] = 0    # label as background   overlap<0.35的全部作为负样本
     loc = encode(matches, priors, variances)
 
-    matches_landm = landms[best_truth_idx]
-    landm = encode_landm(matches_landm, priors, variances)
-    
     loc_t[idx] = loc    # [num_priors,4] encoded offsets to learn
     conf_t[idx] = conf  # [num_priors] top class label for each prior
-    landm_t[idx] = landm
 
 def encode(matched, priors, variances):
     """Encode the variances from the priorbox layers into the ground truth boxes
@@ -362,3 +363,60 @@ def py_cpu_nms(dets, thresh):
         order = order[inds + 1]
 
     return keep
+
+
+def single_class_non_max_suppression(bboxes, confidences, conf_thresh=0.6, iou_thresh=0.5, keep_top_k=-1):
+    '''
+    do nms on single class.
+    Hint: for the specific class, given the bbox and its confidence,
+    1) sort the bbox according to the confidence from top to down, we call this a set
+    2) select the bbox with the highest confidence, remove it from set, and do IOU calculate with the rest bbox
+    3) remove the bbox whose IOU is higher than the iou_thresh from the set,
+    4) loop step 2 and 3, util the set is empty.
+    :param bboxes: numpy array of 2D, [num_bboxes, 4]
+    :param confidences: numpy array of 1D. [num_bboxes]
+    :param conf_thresh:
+    :param iou_thresh:
+    :param keep_top_k:
+    :return:
+    '''
+    if len(bboxes) == 0: 
+        return []
+
+    conf_keep_idx = np.where(confidences > conf_thresh)[0]
+
+    bboxes = bboxes[conf_keep_idx]
+    confidences = confidences[conf_keep_idx]
+
+    pick = []
+    xmin = bboxes[:, 0]
+    ymin = bboxes[:, 1]
+    xmax = bboxes[:, 2]
+    ymax = bboxes[:, 3]
+
+    area = (xmax - xmin + 1e-3) * (ymax - ymin + 1e-3)
+    idxs = np.argsort(confidences)
+
+    while len(idxs) > 0:
+        last = len(idxs) - 1
+        i = idxs[last]
+        pick.append(i)
+
+        # keep top k
+        if keep_top_k != -1:
+            if len(pick) >= keep_top_k:
+                break
+
+        overlap_xmin = np.maximum(xmin[i], xmin[idxs[:last]])
+        overlap_ymin = np.maximum(ymin[i], ymin[idxs[:last]])
+        overlap_xmax = np.minimum(xmax[i], xmax[idxs[:last]])
+        overlap_ymax = np.minimum(ymax[i], ymax[idxs[:last]])
+        overlap_w = np.maximum(0, overlap_xmax - overlap_xmin)
+        overlap_h = np.maximum(0, overlap_ymax - overlap_ymin)
+        overlap_area = overlap_w * overlap_h
+        overlap_ratio = overlap_area / (area[idxs[:last]] + area[i] - overlap_area)
+
+        need_to_be_deleted_idx = np.concatenate(([last], np.where(overlap_ratio > iou_thresh)[0]))
+        idxs = np.delete(idxs, need_to_be_deleted_idx)
+
+    return conf_keep_idx[pick]

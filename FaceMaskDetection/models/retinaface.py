@@ -6,20 +6,20 @@ from collections import OrderedDict
 from models.backbones import *
 
 class ClassHead(nn.Module):
-    def __init__(self, inchannels, num_anchors):
+    def __init__(self, class_num, inchannels, num_anchors):
         # num_cls including neg, face, mask
         super(ClassHead, self).__init__()
         self.num_anchors = num_anchors
-        self.num_cls = num_cls
+        self.class_num = class_num
         # bit different here, compare to faster rcnn anchor mechanism, the rcnn doesn't have anchor anymore, 
         # but for single stage model, it deponds on anchors number, while rcnn consider the num class. 4 * 2 sigmoid or 4 * 3 softmax
-        self.conv1x1 = nn.Conv2d(inchannels, self.num_anchors * 2, kernel_size=(1, 1), stride=1, padding=0)
+        self.conv1x1 = nn.Conv2d(inchannels, self.num_anchors * class_num, kernel_size=(1, 1), stride=1, padding=0)
 
     def forward(self, x):
         out = self.conv1x1(x)
         out = out.permute(0, 2, 3, 1).contiguous()
 
-        return out.view(out.shape[0], -1, self.num_cls)
+        return out.view(out.shape[0], -1, self.class_num)
 
 
 class BboxHead(nn.Module):
@@ -36,22 +36,8 @@ class BboxHead(nn.Module):
 
         return out.view(out.shape[0], -1, 4)
 
-
-class LandmarkHead(nn.Module):
-    def __init__(self, inchannels=512, num_anchors=3):
-        super(LandmarkHead, self).__init__()
-        # 10 is 5*2 5 landmarks
-        self.conv1x1 = nn.Conv2d(inchannels, num_anchors * 10, kernel_size=(1, 1), stride=1, padding=0)
-
-    def forward(self, x):
-        out = self.conv1x1(x)
-        out = out.permute(0, 2, 3, 1).contiguous()
-
-        return out.view(out.shape[0], -1, 10)
-
-
 class RetinaFace(nn.Module):
-    def __init__(self, cfg=None, phase='train'):
+    def __init__(self, class_num=3, cfg=None, phase='train'):
         """
         :param cfg:  Network related settings.
         :param phase: train or test.
@@ -87,14 +73,13 @@ class RetinaFace(nn.Module):
         self.ssh2 = SSH(out_channels, out_channels)
         self.ssh3 = SSH(out_channels, out_channels)
 
-        self.ClassHead = self._make_class_head(fpn_num=3, inchannels=cfg['out_channel'])
+        self.ClassHead = self._make_class_head(class_num, fpn_num=3, inchannels=cfg['out_channel'])
         self.BboxHead = self._make_bbox_head(fpn_num=3, inchannels=cfg['out_channel'])
-        self.LandmarkHead = self._make_landmark_head(fpn_num=3, inchannels=cfg['out_channel'])
 
-    def _make_class_head(self, fpn_num=3, inchannels=64, anchor_num=2):
+    def _make_class_head(self, class_num, fpn_num=3, inchannels=64, anchor_num=2):
         classhead = nn.ModuleList()
         for i in range(fpn_num):
-            classhead.append(ClassHead(inchannels, anchor_num))
+            classhead.append(ClassHead(class_num, inchannels, anchor_num))
         return classhead
 
     def _make_bbox_head(self, fpn_num=3, inchannels=64, anchor_num=2):
@@ -102,12 +87,6 @@ class RetinaFace(nn.Module):
         for i in range(fpn_num):
             bboxhead.append(BboxHead(inchannels, anchor_num))
         return bboxhead
-
-    def _make_landmark_head(self, fpn_num=3, inchannels=64, anchor_num=2):
-        landmarkhead = nn.ModuleList()
-        for i in range(fpn_num):
-            landmarkhead.append(LandmarkHead(inchannels, anchor_num))
-        return landmarkhead
 
     def forward(self, inputs):
         out = self.body(inputs)
