@@ -35,9 +35,17 @@ args = parser.parse_args()
 if not os.path.exists(args.save_folder):
     os.mkdir(args.save_folder)
 
+
+#  [[0.02148438 0.0373458 ] layer 1
+#  [0.26960016 0.39429848] layer 3
+#  [0.078125   0.12308716]] layer 2
+
+# [0.54, 0.57, 0.63, 0.65, 0.72]
+
 cfg = {
     'name': 'mobilenet',
-    'min_sizes': [[16, 32], [64, 128], [256, 512]],
+    'min_sizes': [[0.02, 0.0625], [0.0725, 0.175], [0.25, 0.6]], # 0.02 12 pixel, # anchor cluster result  80*80 feat map wrt 8-40pixel, 40*40 wrt 160pixel for last one
+    'aspect_ratios': [0.54, 0.63, 0.72], # total anchor should be ( 80*80 + 40*40 + 20*20 ) * (2 + len(ratios))
     'steps': [8, 16, 32],
     'variance': [0.1, 0.2],
     'clip': False,
@@ -130,7 +138,7 @@ def train():
     train_loader = data.DataLoader(dataset, batch_size, shuffle=True, num_workers=num_workers, collate_fn=detection_collate)
 
     # as we use same anchor so generate them first to speed up training process, those anchor will not change.
-    priorbox = PriorBox(cfg, image_size=(img_dim, img_dim))
+    priorbox = PriorBox(cfg)
     with torch.no_grad():
         priors = priorbox.forward()
         priors = priors.cuda() # prior is normalized to 0~1 relative to input images

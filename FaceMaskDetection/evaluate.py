@@ -5,7 +5,7 @@ import torch.backends.cudnn as cudnn
 from torch.autograd import Variable
 import torch.utils.data as data
 from prior_box import PriorBox
-
+from box_utils import *
 import sys
 import os
 import time
@@ -14,21 +14,17 @@ import numpy as np
 import pickle
 import cv2
 import pandas as pd
+import torch.nn.functional as F
 
 parser = argparse.ArgumentParser(
     description='Single Shot MultiBox Detector Evaluation')
 parser.add_argument('--trained_model',
-                    default='weights/', type=str,
+                    default='/root/face_mask_lmks_detection/FaceMaskDetection/weights/mobilenet_epoch_60.pth', type=str,
                     help='Trained state_dict file path to open')
 parser.add_argument('--save_folder', default='eval/', type=str,
                     help='File path to save results')
 parser.add_argument('--confidence_threshold', default=0.01, type=float,
                     help='Detection confidence threshold')
-parser.add_argument('--cuda', default=True, type=str2bool,
-                    help='Use cuda to train model')
-parser.add_argument('--cleanup', default=True, type=str2bool,
-                    help='Cleanup and remove results files following eval')
-
 args = parser.parse_args()
 
 def do_python_eval(output_dir='output', use_07=True):
@@ -109,23 +105,23 @@ def voc_eval(detpath,
                            classname,
                            [ovthresh],
                            [use_07_metric])
-Top level function that does the PASCAL VOC evaluation.
-detpath: Path to detections
-   detpath.format(classname) should produce the detection results file.
-annopath: Path to annotations
-   annopath.format(imagename) should be the xml annotations file.
-imagesetfile: Text file containing the list of images, one image per line.
-classname: Category name (duh)
-cachedir: Directory for caching the annotations
-[ovthresh]: Overlap threshold (default = 0.5)
-[use_07_metric]: Whether to use VOC07's 11 point AP computation
-   (default True)
-"""
-# assumes detections are in detpath.format(classname)
-# assumes annotations are in annopath.format(imagename)
-# assumes imagesetfile is a text file with each line an image name
-# cachedir caches the annotations in a pickle file
-# first load gt
+        Top level function that does the PASCAL VOC evaluation.
+        detpath: Path to detections
+        detpath.format(classname) should produce the detection results file.
+        annopath: Path to annotations
+        annopath.format(imagename) should be the xml annotations file.
+        imagesetfile: Text file containing the list of images, one image per line.
+        classname: Category name (duh)
+        cachedir: Directory for caching the annotations
+        [ovthresh]: Overlap threshold (default = 0.5)
+        [use_07_metric]: Whether to use VOC07's 11 point AP computation
+        (default True)
+        """
+    # assumes detections are in detpath.format(classname)
+    # assumes annotations are in annopath.format(imagename)
+    # assumes imagesetfile is a text file with each line an image name
+    # cachedir caches the annotations in a pickle file
+    # first load gt
     if not os.path.isdir(cachedir):
         os.mkdir(cachedir)
     cachefile = os.path.join(cachedir, 'annots.pkl')
@@ -239,13 +235,10 @@ def test_net(save_folder, annopath, net, im_size=300, thresh=0.05):
     df = pd.read_csv(annopath)
     filenames = df['filename'].unique()
 
-    priorbox = PriorBox(cfg, image_size=(im_height, im_width))
-    priors = priorbox.forward()
-    priors = priors.to(device)
-    prior_data = priors.data
-
     all_img_boxes = []
 
+    filenames = ['/root/face_mask_lmks_detection/test_images/test.jpg']
+    resize = 1
     # testing begin
     for i, image_path in enumerate(filenames):
         img_raw = cv2.imread(image_path, cv2.IMREAD_COLOR)
@@ -255,10 +248,16 @@ def test_net(save_folder, annopath, net, im_size=300, thresh=0.05):
         scale = torch.Tensor([img.shape[1], img.shape[0], img.shape[1], img.shape[0]]) # w h w h
         img -= (104, 117, 123)
         
+
+        priorbox = PriorBox(cfg, image_size=(im_height, im_width))
+        priors = priorbox.forward()
+        priors = priors.cuda()
+        prior_data = priors.data
+
         img = img.transpose(2, 0, 1)
         img = torch.from_numpy(img).unsqueeze(0)
-        img = img.to(device)
-        scale = scale.to(device)
+        img = img.cuda()
+        scale = scale.cuda()
 
         tic = time.time()
         loc, conf = net(img)  # forward pass
@@ -268,8 +267,7 @@ def test_net(save_folder, annopath, net, im_size=300, thresh=0.05):
         boxes = boxes.cpu().numpy()
 
         # remove batch dim, as test only for single img
-        scores = conf.squeeze(0).data.cpu().numpy()[:, 1:] # conf : batch, num anchors, 3
-    
+        scores = F.softmax(conf, dim=-1).squeeze(0).data.cpu().numpy()[:, 1:] # conf : batch, num anchors, 3
         # we need to max scores for each anchor
         labels = np.argmax(scores, axis=-1)
         scores = np.max(scores, axis=-1) # scores : number anchors,
@@ -297,12 +295,26 @@ def test_net(save_folder, annopath, net, im_size=300, thresh=0.05):
 
             per_img_bboxes.append([xmin, ymin, xmax, ymax, conf, class_id])
 
+
+            if int(class_id) == 1:
+                color = (0,255,0)
+            else:
+                color = (0, 0, 255)
+
+            cv2.rectangle(img_raw, (xmin, ymin), (xmax, ymax), color, 2)
+            
+            cv2.putText(img_raw, text, (xmin, ymin+12),
+                        cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255))
+
+        cv2.imwrite('./result.jpg', img_raw)
+
+
         all_img_boxes.append(per_img_bboxes)
 
         print('im_detect: {:d}/{:d} {:.3f}s'.format(i + 1, len(filenames), time.time() - tic))
 
 
-    evaluate_detections(all_img_boxes)
+    # evaluate_detections(all_img_boxes)
 
 if __name__ == '__main__':
     # load net
@@ -326,22 +338,17 @@ if __name__ == '__main__':
     }
 
     from models import retinaface
-    net = retinaface.RetinaFace()
+    net = retinaface.RetinaFace(cfg=cfg)
     net.load_state_dict(torch.load(args.trained_model))
 
 
     cudnn.benchmark = True
-    device = torch.device("cpu" if args.cpu else "cuda")
-    net = net.to(device)
+    net = net.cuda()
     net.eval()
     print('Finished loading model!')
 
     annopath = os.path.join('/root/face_mask_lmks_detection/FaceMaskDetection/annos/val_labels.csv')
     dataset_mean = (104, 117, 123)
-
-    if args.cuda:
-        net = net.cuda()
-        cudnn.benchmark = True
         
     # evaluation
     test_net(args.save_folder, annopath, net, thresh=args.confidence_threshold)

@@ -257,15 +257,12 @@ class MultiBoxLoss(nn.Module):
         loss_c = loss_c.view(num, -1)
 
         _, loss_idx = loss_c.sort(1, descending=True) # each image, get the error anchor
-        print(_[0,:], loss_idx[0]) #[batch,8732] 每一列的值为prior box的index
         _, idx_rank = loss_idx.sort(1)
-        print(_[0,:],idx_rank[0,:])  #[batch,8732] 每一列的值为prior box在loss_idx的位置.我们要选取前loss_idx中的前xx个.(xx=3倍负样本)
 
         num_pos = pos.long().sum(1, keepdim=True)
         num_neg = torch.clamp(self.negpos_ratio*num_pos, max=pos.size(1)-1) # make them 1 : 1
 
         neg = idx_rank < num_neg.expand_as(idx_rank)
-        print(neg)
         # Confidence Loss Including Positive and Negative Examples
         pos_idx = pos.unsqueeze(2).expand_as(conf_data)
         neg_idx = neg.unsqueeze(2).expand_as(conf_data)
